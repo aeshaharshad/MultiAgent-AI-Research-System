@@ -3,10 +3,11 @@ from langchain_groq import ChatGroq
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from tools import web_search, scrape_url
-import streamlit as st
-from langchain_groq import ChatGroq
+from dotenv import load_dotenv
+import os
 import time
 
+load_dotenv()
 
 
 # ── Retry wrapper class for chains ────────────────────────────────────────────
@@ -47,20 +48,20 @@ def invoke_with_retry(agent, inputs, retries=3, wait=65):
 
 # ── LLM setup ─────────────────────────────────────────────────────────────────
 # Using 8b model — much higher rate limits on Groq free tier than 70b
-def get_llm():
-    return ChatGroq(
-        model="llama-3.1-8b-instant",
-        temperature=0,
-        api_key=st.secrets["GROQ_API_KEY"],
-    )
+llm = ChatGroq(
+    model="llama-3.1-8b-instant",
+    temperature=0,
+    api_key=os.getenv("GROQ_API_KEY"),
+)
 
 
 # ── Agents ────────────────────────────────────────────────────────────────────
 def build_search_agent():
-    return create_react_agent(model=get_llm(), tools=[web_search])
+    return create_react_agent(model=llm, tools=[web_search])
 
 def build_reader_agent():
-    return create_react_agent(model=get_llm(), tools=[scrape_url])
+    return create_react_agent(model=llm, tools=[scrape_url])
+
 
 # ── Writer chain ──────────────────────────────────────────────────────────────
 writer_prompt = ChatPromptTemplate.from_messages([
@@ -81,8 +82,10 @@ Structure the report as:
 Be detailed, factual and professional."""),
 ])
 
-_writer_chain = writer_prompt | get_llm() | StrOutputParser()
+_writer_chain = writer_prompt | llm | StrOutputParser()
 writer_chain = RetryChain(_writer_chain)
+
+
 # ── Critic chain ──────────────────────────────────────────────────────────────
 critic_prompt = ChatPromptTemplate.from_messages([
     ("system", "You are a sharp and constructive research critic. Be honest and specific."),
@@ -107,5 +110,5 @@ One line verdict:
 ..."""),
 ])
 
-_critic_chain = critic_prompt | get_llm() | StrOutputParser()
+_critic_chain = critic_prompt | llm | StrOutputParser()
 critic_chain = RetryChain(_critic_chain)
