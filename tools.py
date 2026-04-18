@@ -7,13 +7,18 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-tavily = TavilyClient(api_key=os.getenv("TAVILY_API_KEY"))
+import streamlit as st
+from tavily import TavilyClient
+
+def get_tavily():
+    return TavilyClient(api_key=st.secrets["TAVILY_API_KEY"])
 
 
 @tool
 def web_search(query: str) -> str:
     """Search the web for recent and reliable information on a topic. Returns titles, URLs and snippets."""
     try:
+        tavily = get_tavily()
         results = tavily.search(query=query, max_results=5)
         out = []
         for r in results['results']:
